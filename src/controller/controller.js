@@ -2,6 +2,7 @@ const upload = require("../middleware/upload");
 const config = require("../config");
 const MongoClient = require("mongodb").MongoClient;
 const GridFSBucket = require("mongodb").GridFSBucket;
+const sharp = require("sharp");
 
 const url = config.db.connectionString;
 
@@ -12,16 +13,17 @@ const mongoClient = new MongoClient(url);
 const uploadFiles = async (req, res) => {
   try {
     await upload(req, res);
-    console.log(req.file);
-
+    
     if (req.file == undefined) {
       return res.send({
         message: "You must select a file.",
       });
     }
-
-    return res.send({
-      message: "File has been uploaded.",
+    
+    return res.json({
+      success:true,
+      filename: req.file.filename,
+      message: "File has been uploaded."
     });
   } catch (error) {
     console.log(error);
@@ -71,26 +73,55 @@ const download = async (req, res) => {
     const bucket = new GridFSBucket(database, {
       bucketName: config.db.imgBucket,
     });
+    let userFilename = req.params.name;
+    var  filename_split =  userFilename.split('.');
+    var ext = filename_split[1];
+    var filename = filename_split[0];
+    console.log("User has requested file = ", userFilename);
+    console.log("Looking in our DB for filename= ", filename); 
+    
+    bucket.find({filename: filename})
+    .toArray(function(err, docs) {
+      if (err) {
+        return res.status(300).send({message: `Error retrieving file ${filename}.${ext}`});
+      }
+      if (!docs || docs.length === 0) {
+        return res.status(404).send({message: `Cannot download the file ${filename}.${ext}`});
+      } else {
 
-    let downloadStream = bucket.openDownloadStreamByName(req.params.name);
+        var savedType = JSON.parse(JSON.stringify(docs[0])).contentType;
+        
+        console.log(" Image saved as ", savedType, " requested as ", ext);
 
-    downloadStream.on("data", function (data) {
-      return res.status(200).write(data);
-    });
+        let downloadStream = bucket.openDownloadStreamByName(filename);
+        downloadStream.read();
+        return new Promise((resolve, reject) => {
+          const chunks = [];
+          downloadStream.on('data', data => {
+            chunks.push(data);
+          });
+          downloadStream.on('end', () => {
+            const data = Buffer.concat(chunks);
+            sharp(data)
+            .toFormat(ext)
+            .toBuffer()
+            .then( data => { res.status(200).send(data)})
+            .catch( err => { console.log("Ooops: ", err); })
+            resolve(res.status(200));
+          });
 
-    downloadStream.on("error", function (err) {
-      return res.status(404).send({ message: `Cannot download the Image! : ${err} ` });
-    });
-
-    downloadStream.on("end", () => {
-      return res.end();
-    });
+          downloadStream.on("error", function (err) {
+            return res.status(404).send({ message: `Cannot download the Image! : ${err} ` });
+          });         
+        });
+      }
+    }); 
   } catch (error) {
-    return res.status(500).send({
-      message: error.message,
-    });
+      return res.status(500).send({
+        message: error.message,
+      });
   }
-};
+}
 
 module.exports = {
   uploadFiles,
