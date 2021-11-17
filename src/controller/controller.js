@@ -4,6 +4,15 @@ const MongoClient = require("mongodb").MongoClient;
 const GridFSBucket = require("mongodb").GridFSBucket;
 const sharp = require("sharp");
 
+// Description:
+// 3 main functions here
+// uploadFiles() : calls the middleware to set up the gridfsstorage+multer connection to mongodb to upload the file
+// getListFiles() : connects to the mongodb and gets a list of all the records in the collection
+// download() : Determines the format of the image the user expects from the file extension
+//              Connects to mongodb via the GridFSBucket connecttion and concats the chunks from downloadstream
+//              Passes the concatenated buffer to sharp to convert to the required format
+//              This is sent back to the client with the appropriate content-type header
+
 const url = config.db.connectionString;
 
 const baseUrl = config.web.baseUrl;
@@ -19,7 +28,7 @@ const uploadFiles = async (req, res) => {
         message: "You must select a file.",
       });
     }
-    
+    //console.log(" Uploadef file. ID = ", req.file.filename);
     return res.json({
       success:true,
       filename: req.file.filename,
@@ -77,8 +86,8 @@ const download = async (req, res) => {
     var  filename_split =  userFilename.split('.');
     var ext = filename_split[1];
     var filename = filename_split[0];
-    console.log("User has requested file = ", userFilename);
-    console.log("Looking in our DB for filename= ", filename); 
+    //console.log("User has requested file = ", userFilename);
+    //console.log("Looking in our DB for filename= ", filename); 
     
     bucket.find({filename: filename})
     .toArray(function(err, docs) {
@@ -91,7 +100,7 @@ const download = async (req, res) => {
 
         var savedType = JSON.parse(JSON.stringify(docs[0])).contentType;
         
-        console.log(" Image saved as ", savedType, " requested as ", ext);
+        //console.log(" Image saved as ", savedType, " requested as ", ext);
 
         let downloadStream = bucket.openDownloadStreamByName(filename);
         downloadStream.read();
@@ -101,11 +110,16 @@ const download = async (req, res) => {
             chunks.push(data);
           });
           downloadStream.on('end', () => {
+            let contenttype = 'image/' + ext;
+
             const data = Buffer.concat(chunks);
             sharp(data)
             .toFormat(ext)
             .toBuffer()
-            .then( data => { res.status(200).send(data)})
+            .then( data => { 
+                    res.setHeader('content-type', contenttype);
+                    res.status(200).send(data)
+                  })
             .catch( err => { console.log("Ooops: ", err); })
             resolve(res.status(200));
           });

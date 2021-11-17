@@ -6,7 +6,8 @@ const crypto = require('crypto');
 const path = require('path');
 const mongoose = require('mongoose');
 
-//const maxSize = 2 * 1024 * 1024;
+// Description:
+// This module sets up the GridFsStorage connection via multer to upload the file chunks to mongodb
 
 const mongoURI = config.db.connectionString;
 
@@ -22,7 +23,7 @@ var storage = new GridFsStorage({
         if (err) {
           return reject(err);
         }
-        console.log("ID returned to user is ", buf.toString('hex'));
+        //console.log("ID returned to user is ", buf.toString('hex'));
         const filename = buf.toString('hex');
         //const filename = buf.toString('hex') + path.extname(file.originalname);
         const fileInfo = {
