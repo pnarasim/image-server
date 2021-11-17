@@ -14,11 +14,11 @@ You can modify the configs (which port to use and which mongodb URI to connect t
 
 I have put up a test mongodb cluster wth credentials of demo/demo just to enable testing of this API
 
-Eventually I will remove the cluster, hence there should be no real security risk of exposing thie username/passwd/cluster here for this demo
+Eventually I will remove the cluster, hence there should be no real security risk of exposing this username/passwd/cluster here for this demo
 
 
 ## Design
-### HTTP POST requests to "http://localhost:8008/upload"
+### HTTP POST requests to "http://localhost:8080/upload"
 - provide the file to be uploaded in the body with a key of "field" and the value is the file to upload
 - if the server accepts your request, it will return a HTTP 200 response, with the following JSON text
 ```
@@ -34,6 +34,7 @@ Eventually I will remove the cluster, hence there should be no real security ris
 
 ### HTTP GET requests to "http://localhost:8080/files/:name"
 -  name refers to a filename of the form {name.ext}, where, the id you were returned during a previous POST is the name and the ext is the format on which you wish receive your image
+- an example could be `http://localhost:8080/files/4aa3b7dd808795eb024ad89afb255525.png`
 - the nodejs sharp library will retrieve the original file from mongodb and convert it (if possible) to the extension format you requested
 - any errors in the process will be reflected back to you
 - if successful, you will receive the image back in the converted form.
